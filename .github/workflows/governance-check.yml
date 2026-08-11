@@ -47,7 +47,7 @@ on:
         default: "v1.0.0"
       governance-repo:
         type: string
-        default: "associated-bank/dbt-governance-checks"
+        default: "sfc-gh-mwinkel/dbt-governance-checks"
     secrets:
       DBT_ENV_SECRET_PRIVATE_KEY:
         required: false

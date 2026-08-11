@@ -23,7 +23,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - run: pip install -r requirements.txt -r requirements-dev.txt
+      - run: pip install -r requirements.txt pytest==7.4.4
       - run: python -m pytest tests/ -v
 
   fixture-end-to-end:
@@ -81,7 +81,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        dbt-version: ["1.7.18", "1.8.9", "1.9.4"]
+        # dbt-snowflake minor versions lag dbt-core patch numbers, so the
+        # adapter floats within the matching minor rather than being pinned to
+        # a patch that does not exist (there is no dbt-snowflake 1.7.18).
+        include:
+          - dbt-core: "1.7.18"
+            adapter: ">=1.7,<1.8"
+          - dbt-core: "1.8.9"
+            adapter: ">=1.8,<1.9"
+          - dbt-core: "1.9.4"
+            adapter: ">=1.9,<1.10"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -89,10 +98,10 @@ jobs:
           # 3.11 is supported by all of dbt Core 1.7 through 1.9.
           python-version: "3.11"
 
-      - name: Install dbt Core ${{ matrix.dbt-version }}
+      - name: Install dbt Core ${{ matrix.dbt-core }}
         run: |
           pip install -r requirements.txt
-          pip install "dbt-core==${{ matrix.dbt-version }}" "dbt-snowflake~=${{ matrix.dbt-version }}"
+          pip install "dbt-core==${{ matrix.dbt-core }}" "dbt-snowflake${{ matrix.adapter }}"
           dbt --version
 
       - name: Parse the fixture project
@@ -109,6 +118,6 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: pip install -r requirements-dev.txt
+      - run: pip install ruff==0.6.9
       - run: ruff check dbt_governance tests scripts
       - run: ruff format --check dbt_governance tests scripts

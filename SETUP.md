@@ -18,6 +18,12 @@ If dbt Hub is blocked from the VDI, either vendor `dbt_packages/` into the repo 
 
 ---
 
+**Repository references.** The snippets below point at `sfc-gh-mwinkel/dbt-governance-checks`, where this tool is currently hosted. When it is transferred into the client's own organization, update the `uses:` line, the `pip install git+...` URL, and the `governance-repo` default in `governance-check.yml` to the new owner.
+
+**Private repositories.** If this repo stays private, calling its reusable workflow from another repo requires Actions access to be granted: on this repo, Settings, Actions, General, "Access", set to allow access from repositories in the same organization. Without that, the caller fails with a workflow-not-found error. Path A (`pip install git+...`) needs a token with read access instead.
+
+---
+
 ## Which integration path
 
 Completeness checking needs `catalog.json`, which needs models **built**. That makes the job sequence `dbt deps` → `dbt build` → `dbt docs generate` → check.
@@ -47,7 +53,7 @@ Add to the job that already runs `dbt build` on changed models, after the build 
         continue-on-error: true
 
       - name: Install the governance checker
-        run: pip install "git+https://github.com/associated-bank/dbt-governance-checks@v1.0.0"
+        run: pip install "git+https://github.com/sfc-gh-mwinkel/dbt-governance-checks@v1.0.0"
 
       - name: Governance annotations
         continue-on-error: true
@@ -84,7 +90,7 @@ on:
 
 jobs:
   governance:
-    uses: associated-bank/dbt-governance-checks/.github/workflows/governance-check.yml@v1.0.0
+    uses: sfc-gh-mwinkel/dbt-governance-checks/.github/workflows/governance-check.yml@v1.0.0
     with:
       project-dir: "."
       changed-only: true
