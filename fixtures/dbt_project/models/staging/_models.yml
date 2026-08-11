@@ -1,0 +1,23 @@
+version: 2
+
+models:
+  - name: stg_project_tagged_only
+    description: "Customer records staged from the source system for downstream modelling."
+    columns:
+      - name: customer_id
+        description: "Surrogate key uniquely identifying the customer."
+        data_type: number
+        tests:
+          - unique
+      - name: customer_name
+        description: "Registered legal name of the customer."
+        data_type: varchar
+
+  - name: stg_partial_columns
+    description: "Order records staged from the source system, partially documented."
+    columns:
+      - name: order_id
+        description: "Surrogate key uniquely identifying the order."
+        data_type: number
+        tests:
+          - unique

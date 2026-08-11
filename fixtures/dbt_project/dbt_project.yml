@@ -1,0 +1,28 @@
+name: 'governance_fixture'
+version: '1.0.0'
+config-version: 2
+profile: 'governance_fixture'
+
+model-paths: ["models"]
+target-path: "target"
+
+models:
+  governance_fixture:
+    +materialized: view
+
+    # Tags applied here only. Models in this folder declare no tags of their
+    # own, so they prove that project-level inheritance is honoured.
+    staging:
+      +tags: ["customer", "internal"]
+
+    marts:
+      # Supplies the domain tag. Models add their own classification tag.
+      +tags: ["finance"]
+
+      # dbt appends tags across levels, so models here inherit both
+      # "finance" and "confidential" without declaring either.
+      nested:
+        +tags: ["confidential"]
+
+    legacy:
+      +tags: ["ops", "internal"]

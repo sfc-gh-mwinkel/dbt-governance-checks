@@ -1,0 +1,180 @@
+name: dbt governance check
+
+# Reusable workflow. Callers pin a tag so fixes arrive by bumping a version
+# rather than re-copying vendored code.
+#
+# Column completeness is verified against catalog.json, which requires the
+# changed models to be BUILT before `dbt docs generate` runs. If your repo
+# already has a slim CI job that builds changed models, prefer calling the
+# checker as a step there instead of running this workflow: a second build
+# doubles CI cost and creates a second Snowflake credential path to review.
+# See SETUP.md for that integration.
+
+on:
+  workflow_call:
+    inputs:
+      project-dir:
+        description: "dbt project directory, relative to the repo root"
+        type: string
+        default: "."
+      rules-file:
+        description: "Path to governance_rules.yml, relative to project-dir"
+        type: string
+        default: "governance_rules.yml"
+      python-version:
+        type: string
+        default: "3.11"
+      dbt-target:
+        description: "Target in profiles.yml to build against"
+        type: string
+        default: "ci"
+      changed-only:
+        description: "Only check models changed relative to the PR base"
+        type: boolean
+        default: true
+      skip-catalog:
+        description: >-
+          Skip the build and `dbt docs generate`, running only the checks that
+          need no warehouse. Column completeness cannot be verified this way.
+        type: boolean
+        default: false
+      warnings-as-errors:
+        type: boolean
+        default: false
+      governance-ref:
+        description: "Ref of the dbt-governance-checks repo to install"
+        type: string
+        default: "v1.0.0"
+      governance-repo:
+        type: string
+        default: "associated-bank/dbt-governance-checks"
+    secrets:
+      DBT_ENV_SECRET_PRIVATE_KEY:
+        required: false
+      SNOWFLAKE_ACCOUNT:
+        required: false
+      SNOWFLAKE_USER:
+        required: false
+      SNOWFLAKE_ROLE:
+        required: false
+      SNOWFLAKE_WAREHOUSE:
+        required: false
+      SNOWFLAKE_DATABASE:
+        required: false
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  governance:
+    runs-on: ubuntu-latest
+    steps:
+      # fetch-depth: 0 is required: the base ref must be present locally for
+      # changed-model scoping to work.
+      - name: Check out the dbt project
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check out the governance checker
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.governance-repo }}
+          ref: ${{ inputs.governance-ref }}
+          path: .governance-tool
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python-version }}
+
+      - name: Install dependencies
+        working-directory: ${{ inputs.project-dir }}
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install "${GITHUB_WORKSPACE}/.governance-tool"
+
+      - name: dbt deps
+        working-directory: ${{ inputs.project-dir }}
+        run: dbt deps
+
+      # Parse alone builds the manifest and needs no warehouse connection, so
+      # the tag and description rules can run even if the build below fails.
+      - name: dbt parse
+        working-directory: ${{ inputs.project-dir }}
+        run: dbt parse --target ${{ inputs.dbt-target }}
+        env:
+          SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+          SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
+          SNOWFLAKE_ROLE: ${{ secrets.SNOWFLAKE_ROLE }}
+          SNOWFLAKE_WAREHOUSE: ${{ secrets.SNOWFLAKE_WAREHOUSE }}
+          SNOWFLAKE_DATABASE: ${{ secrets.SNOWFLAKE_DATABASE }}
+          DBT_ENV_SECRET_PRIVATE_KEY: ${{ secrets.DBT_ENV_SECRET_PRIVATE_KEY }}
+
+      - name: Build changed models
+        if: ${{ !inputs.skip-catalog }}
+        working-directory: ${{ inputs.project-dir }}
+        run: dbt build --target ${{ inputs.dbt-target }} --select state:modified+ --defer --state ./prod-manifest
+        continue-on-error: true
+        env:
+          SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+          SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
+          SNOWFLAKE_ROLE: ${{ secrets.SNOWFLAKE_ROLE }}
+          SNOWFLAKE_WAREHOUSE: ${{ secrets.SNOWFLAKE_WAREHOUSE }}
+          SNOWFLAKE_DATABASE: ${{ secrets.SNOWFLAKE_DATABASE }}
+          DBT_ENV_SECRET_PRIVATE_KEY: ${{ secrets.DBT_ENV_SECRET_PRIVATE_KEY }}
+
+      # Produces catalog.json, the only source of the model's actual columns.
+      - name: dbt docs generate
+        if: ${{ !inputs.skip-catalog }}
+        working-directory: ${{ inputs.project-dir }}
+        run: dbt docs generate --target ${{ inputs.dbt-target }}
+        continue-on-error: true
+        env:
+          SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+          SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
+          SNOWFLAKE_ROLE: ${{ secrets.SNOWFLAKE_ROLE }}
+          SNOWFLAKE_WAREHOUSE: ${{ secrets.SNOWFLAKE_WAREHOUSE }}
+          SNOWFLAKE_DATABASE: ${{ secrets.SNOWFLAKE_DATABASE }}
+          DBT_ENV_SECRET_PRIVATE_KEY: ${{ secrets.DBT_ENV_SECRET_PRIVATE_KEY }}
+
+      # Annotations render violations inline on the PR diff.
+      - name: Governance annotations
+        working-directory: ${{ inputs.project-dir }}
+        continue-on-error: true
+        run: |
+          dbt-governance \
+            --project-dir . \
+            --rules "${{ inputs.rules-file }}" \
+            ${{ inputs.changed-only && format('--changed-only --base-ref origin/{0}', github.base_ref) || '' }} \
+            --format annotations
+
+      - name: Governance summary
+        id: summary
+        working-directory: ${{ inputs.project-dir }}
+        run: |
+          set +e
+          dbt-governance \
+            --project-dir . \
+            --rules "${{ inputs.rules-file }}" \
+            ${{ inputs.changed-only && format('--changed-only --base-ref origin/{0}', github.base_ref) || '' }} \
+            ${{ inputs.warnings-as-errors && '--warnings-as-errors' || '' }} \
+            --format markdown \
+            --output "${RUNNER_TEMP}/governance.md"
+          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+          cat "${RUNNER_TEMP}/governance.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Comment on the pull request
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: dbt-governance
+          path: ${{ runner.temp }}/governance.md
+
+      - name: Fail on violations
+        if: ${{ steps.summary.outputs.exit_code != '0' }}
+        run: |
+          echo "Governance checks failed. See the job summary and inline annotations."
+          exit 1

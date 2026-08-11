@@ -1,0 +1,14 @@
+version: 2
+
+models:
+  - name: fct_nested_tags
+    description: "Fully documented fact model whose tags come entirely from nested folder configs."
+    columns:
+      - name: transaction_id
+        description: "Surrogate key uniquely identifying the transaction."
+        data_type: number
+        tests:
+          - unique
+      - name: transaction_amount
+        description: "Transaction gross amount in USD."
+        data_type: number

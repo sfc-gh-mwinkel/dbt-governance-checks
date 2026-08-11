@@ -1,0 +1,103 @@
+{
+  "metadata": {
+    "dbt_schema_version": "https://schemas.getdbt.com/dbt/catalog/v1.json",
+    "dbt_version": "1.9.0",
+    "generated_at": "2026-01-01T00:00:00.000000Z",
+    "invocation_id": "00000000-0000-0000-0000-000000000000",
+    "env": {}
+  },
+  "_comment": [
+    "Synthesized rather than produced by `dbt docs generate`, because the fixture",
+    "project has no warehouse to build against. Column names are upper-cased to",
+    "mirror how Snowflake reports them, which is what the case-folding in the",
+    "completeness rule exists to handle.",
+    "dim_not_built and int_ephemeral_documented are deliberately absent: the",
+    "first simulates a failed build (must error), the second is ephemeral and so",
+    "is never materialized (must be skipped)."
+  ],
+  "nodes": {
+    "model.governance_fixture.stg_project_tagged_only": {
+      "unique_id": "model.governance_fixture.stg_project_tagged_only",
+      "columns": {
+        "CUSTOMER_ID": {"type": "NUMBER", "index": 1, "name": "CUSTOMER_ID", "comment": null},
+        "CUSTOMER_NAME": {"type": "TEXT", "index": 2, "name": "CUSTOMER_NAME", "comment": null}
+      }
+    },
+    "model.governance_fixture.stg_partial_columns": {
+      "unique_id": "model.governance_fixture.stg_partial_columns",
+      "columns": {
+        "ORDER_ID": {"type": "NUMBER", "index": 1, "name": "ORDER_ID", "comment": null},
+        "ORDER_TOTAL": {"type": "NUMBER", "index": 2, "name": "ORDER_TOTAL", "comment": null}
+      }
+    },
+    "model.governance_fixture.fct_nested_tags": {
+      "unique_id": "model.governance_fixture.fct_nested_tags",
+      "columns": {
+        "TRANSACTION_ID": {"type": "NUMBER", "index": 1, "name": "TRANSACTION_ID", "comment": null},
+        "TRANSACTION_AMOUNT": {"type": "NUMBER", "index": 2, "name": "TRANSACTION_AMOUNT", "comment": null}
+      }
+    },
+    "model.governance_fixture.dim_fully_documented": {
+      "unique_id": "model.governance_fixture.dim_fully_documented",
+      "columns": {
+        "CUSTOMER_KEY": {"type": "NUMBER", "index": 1, "name": "CUSTOMER_KEY", "comment": null},
+        "CUSTOMER_NAME": {"type": "TEXT", "index": 2, "name": "CUSTOMER_NAME", "comment": null}
+      }
+    },
+    "model.governance_fixture.dim_zero_documented_columns": {
+      "unique_id": "model.governance_fixture.dim_zero_documented_columns",
+      "columns": {
+        "ORDER_KEY": {"type": "NUMBER", "index": 1, "name": "ORDER_KEY", "comment": null},
+        "ORDER_TOTAL": {"type": "NUMBER", "index": 2, "name": "ORDER_TOTAL", "comment": null},
+        "ORDER_STATUS": {"type": "TEXT", "index": 3, "name": "ORDER_STATUS", "comment": null}
+      }
+    },
+    "model.governance_fixture.dim_placeholder_description": {
+      "unique_id": "model.governance_fixture.dim_placeholder_description",
+      "columns": {
+        "PRODUCT_KEY": {"type": "NUMBER", "index": 1, "name": "PRODUCT_KEY", "comment": null},
+        "PRODUCT_NAME": {"type": "TEXT", "index": 2, "name": "PRODUCT_NAME", "comment": null}
+      }
+    },
+    "model.governance_fixture.dim_missing_data_type": {
+      "unique_id": "model.governance_fixture.dim_missing_data_type",
+      "columns": {
+        "REGION_KEY": {"type": "NUMBER", "index": 1, "name": "REGION_KEY", "comment": null},
+        "REGION_NAME": {"type": "TEXT", "index": 2, "name": "REGION_NAME", "comment": null}
+      }
+    },
+    "model.governance_fixture.dim_bad_tag": {
+      "unique_id": "model.governance_fixture.dim_bad_tag",
+      "columns": {
+        "VENDOR_KEY": {"type": "NUMBER", "index": 1, "name": "VENDOR_KEY", "comment": null}
+      }
+    },
+    "model.governance_fixture.dim_untested_key": {
+      "unique_id": "model.governance_fixture.dim_untested_key",
+      "columns": {
+        "INVOICE_ID": {"type": "NUMBER", "index": 1, "name": "INVOICE_ID", "comment": null},
+        "INVOICE_AMOUNT": {"type": "NUMBER", "index": 2, "name": "INVOICE_AMOUNT", "comment": null}
+      }
+    },
+    "model.governance_fixture.dim_no_yaml_entry": {
+      "unique_id": "model.governance_fixture.dim_no_yaml_entry",
+      "columns": {
+        "ORPHAN_KEY": {"type": "NUMBER", "index": 1, "name": "ORPHAN_KEY", "comment": null}
+      }
+    },
+    "model.governance_fixture.legacy_active": {
+      "unique_id": "model.governance_fixture.legacy_active",
+      "columns": {
+        "LEGACY_ID": {"type": "NUMBER", "index": 1, "name": "LEGACY_ID", "comment": null}
+      }
+    },
+    "model.governance_fixture.legacy_expired": {
+      "unique_id": "model.governance_fixture.legacy_expired",
+      "columns": {
+        "LEGACY_ID": {"type": "NUMBER", "index": 1, "name": "LEGACY_ID", "comment": null}
+      }
+    }
+  },
+  "sources": {},
+  "errors": null
+}

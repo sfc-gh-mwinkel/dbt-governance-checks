@@ -1,0 +1,36 @@
+version: 1
+
+defaults:
+  tags:
+    require_any_of_group:
+      domain: ["finance", "risk", "customer", "ops"]
+      classification: ["public", "internal", "confidential", "restricted"]
+    allowed_only: true
+    additional_allowed_tags: ["nightly", "pii"]
+
+  documentation:
+    require_yaml_entry: true
+    require_model_description: true
+    require_all_columns_documented: true
+    require_column_descriptions: true
+    require_column_data_types: true
+    min_description_length: 0
+    placeholder_denylist: ["todo", "tbd", "n/a", "na", "none", "?", "xxx", "-"]
+    key_column_patterns: ["*_id", "*_key", "*_sk", "id"]
+    key_column_required_tests:
+      - unique
+      - dbt_constraints.primary_key
+
+layers:
+  # Exercises severity downgrade via layer override.
+  staging:
+    documentation:
+      require_all_columns_documented: {severity: warning}
+
+exemptions:
+  - path: "models/legacy/active/**"
+    reason: "Pre-governance backlog, tracked in FIXTURE-1"
+    expires: 2999-12-31
+  - path: "models/legacy/expired/**"
+    reason: "Deliberately expired to prove the gate re-engages"
+    expires: 2020-01-01

@@ -1,0 +1,78 @@
+version: 2
+
+models:
+  - name: dim_fully_documented
+    description: "Customer dimension with complete documentation. This model should produce no violations."
+    columns:
+      - name: customer_key
+        description: "Surrogate key uniquely identifying the customer."
+        data_type: number
+        tests:
+          - unique
+      - name: customer_name
+        description: "Registered legal name of the customer."
+        data_type: varchar
+
+  - name: dim_zero_documented_columns
+    description: "Documents no columns at all, so every column rule passes vacuously without a catalog."
+    # No columns block. This is the loophole catalog.json closes.
+
+  - name: dim_placeholder_description
+    description: "Uses placeholder text for a column description."
+    columns:
+      - name: product_key
+        description: "TODO"
+        data_type: number
+        tests:
+          - unique
+      - name: product_name
+        description: "Display name of the product."
+        data_type: varchar
+
+  - name: dim_missing_data_type
+    description: "Omits data_type on a documented column."
+    columns:
+      - name: region_key
+        description: "Surrogate key uniquely identifying the region."
+        tests:
+          - unique
+      - name: region_name
+        description: "Human readable region name."
+        data_type: varchar
+
+  - name: dim_bad_tag
+    description: "Carries a misspelled classification tag that a presence check would accept."
+    columns:
+      - name: vendor_key
+        description: "Surrogate key uniquely identifying the vendor."
+        data_type: number
+        tests:
+          - unique
+
+  - name: dim_untested_key
+    description: "Documents a key column but attaches no uniqueness test to it."
+    columns:
+      - name: invoice_id
+        description: "Surrogate key uniquely identifying the invoice."
+        data_type: number
+      - name: invoice_amount
+        description: "Invoice gross amount in USD."
+        data_type: number
+
+  - name: dim_not_built
+    description: "Fully documented but deliberately absent from catalog.json, as if its build failed."
+    columns:
+      - name: account_key
+        description: "Surrogate key uniquely identifying the account."
+        data_type: number
+        tests:
+          - unique
+
+  - name: int_ephemeral_documented
+    description: "Ephemeral model, never materialized, so it has no catalog entry and must not be penalised."
+    columns:
+      - name: session_id
+        description: "Surrogate key uniquely identifying the session."
+        data_type: number
+        tests:
+          - unique

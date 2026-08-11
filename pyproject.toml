@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dbt-governance-checks"
+version = "1.0.0"
+description = "Enforce dbt tag coverage and documentation completeness in CI."
+requires-python = ">=3.9"
+dependencies = ["PyYAML>=6.0"]
+
+[project.scripts]
+dbt-governance = "dbt_governance.cli:main"
+
+[tool.setuptools]
+packages = ["dbt_governance", "dbt_governance.rules"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests import helpers from conftest, which ruff reads as a first-party
+# module living outside the package.
+"tests/*" = ["E402"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = [".", "tests"]

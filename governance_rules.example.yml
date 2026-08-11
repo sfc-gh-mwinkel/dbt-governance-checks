@@ -1,0 +1,66 @@
+# dbt governance rules
+#
+# Copy to governance_rules.yml in your dbt project root and edit.
+# Every rule accepts either a bare value or a mapping with `value` and
+# `severity` (error | warning | ignore), so rules can be landed as warnings
+# and promoted to errors once the project is clean.
+
+version: 1
+
+defaults:
+  tags:
+    # A model must carry at least one tag from each group listed here.
+    # Groups express a controlled vocabulary: a typo'd tag such as
+    # "confidental" looks compliant to a presence check but is not.
+    require_any_of_group:
+      domain: ["finance", "risk", "customer", "ops"]
+      classification: ["public", "internal", "confidential", "restricted"]
+
+    # Reject any tag that is not in a group vocabulary or in
+    # additional_allowed_tags below. Set to false to allow free-form tags.
+    allowed_only: true
+
+    # Operational tags that are permitted but not required.
+    additional_allowed_tags: ["nightly", "hourly", "pii", "deprecated"]
+
+  documentation:
+    require_yaml_entry: true
+    require_model_description: true
+
+    # Requires catalog.json. Every column the model actually returns must be
+    # documented in YAML. Without this, a model documenting zero columns
+    # passes every other rule vacuously.
+    require_all_columns_documented: true
+
+    require_column_descriptions: true
+    require_column_data_types: true
+
+    # 0 disables the length check.
+    min_description_length: 0
+
+    # Matched case-insensitively against the trimmed description.
+    placeholder_denylist: ["todo", "tbd", "n/a", "na", "none", "?", "xxx", "-"]
+
+    # Columns matching these globs must carry one of the tests below.
+    key_column_patterns: ["*_id", "*_key", "*_sk", "id"]
+    key_column_required_tests:
+      - unique
+      - dbt_constraints.primary_key
+
+# Per-layer overrides, keyed by the first directory under models/.
+# A mapping with only `severity` inherits `value` from defaults.
+layers:
+  staging:
+    documentation:
+      require_all_columns_documented: {severity: warning}
+  marts:
+    documentation:
+      require_column_data_types: {severity: error}
+
+# Exempt paths from all checks. `expires` is required: without an expiry an
+# exemption becomes permanent and the gate quietly erodes. An expired
+# exemption fails the build so it has to be revisited.
+exemptions:
+  - path: "models/legacy/**"
+    reason: "Pre-governance backlog, tracked in JIRA AB-1234"
+    expires: 2026-12-31

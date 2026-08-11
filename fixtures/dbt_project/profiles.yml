@@ -1,0 +1,15 @@
+# Dummy credentials. `dbt parse` builds the manifest without connecting to a
+# warehouse, so the fixture project can be parsed in CI with no secrets.
+governance_fixture:
+  target: ci
+  outputs:
+    ci:
+      type: snowflake
+      account: not_a_real_account
+      user: not_a_real_user
+      password: not_a_real_password
+      role: not_a_real_role
+      database: not_a_real_database
+      warehouse: not_a_real_warehouse
+      schema: not_a_real_schema
+      threads: 1

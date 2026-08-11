@@ -1,0 +1,83 @@
+name: self-test
+
+# Validates the checker against its own fixture project. Because the client's
+# environment is not reachable, this is the primary correctness signal.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: pip install -r requirements.txt -r requirements-dev.txt
+      - run: python -m pytest tests/ -v
+
+  fixture-end-to-end:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt -r requirements-dev.txt
+
+      # Regenerates the manifest from real dbt to catch drift between the
+      # committed fixture and what dbt actually emits. A silently stale
+      # fixture would let the golden test pass against reality it no longer
+      # reflects.
+      - name: Re-parse the fixture project
+        working-directory: fixtures/dbt_project
+        run: DBT_PROFILES_DIR=. dbt parse
+
+      - name: Detect fixture manifest drift
+        run: python scripts/check_fixture_drift.py
+
+      # The fixture is engineered to fail, so a zero exit code here means the
+      # checker has stopped detecting violations.
+      - name: Confirm the checker fails on the fixture project
+        run: |
+          set +e
+          python -m dbt_governance.cli \
+            --project-dir fixtures/dbt_project \
+            --catalog fixtures/catalog.json \
+            --format console
+          exit_code=$?
+          set -e
+          if [ "$exit_code" -ne 1 ]; then
+            echo "::error::expected exit code 1 from the deliberately non-compliant fixture, got ${exit_code}"
+            exit 1
+          fi
+
+      - name: Confirm annotations and markdown render
+        run: |
+          python -m dbt_governance.cli --project-dir fixtures/dbt_project \
+            --catalog fixtures/catalog.json --format annotations || true
+          python -m dbt_governance.cli --project-dir fixtures/dbt_project \
+            --catalog fixtures/catalog.json --format markdown \
+            --output "${RUNNER_TEMP}/summary.md" || true
+          cat "${RUNNER_TEMP}/summary.md" >> "$GITHUB_STEP_SUMMARY"
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements-dev.txt
+      - run: ruff check dbt_governance tests scripts
+      - run: ruff format --check dbt_governance tests scripts

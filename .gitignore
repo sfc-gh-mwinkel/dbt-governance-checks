@@ -1,0 +1,28 @@
+# dbt
+target/
+dbt_packages/
+logs/
+.user.yml
+
+# Exception: the fixture manifest is committed deliberately so the test suite
+# runs without dbt installed. CI re-parses the fixture project and compares
+# against it to catch drift.
+!fixtures/manifest.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+
+# Local overrides
+governance_rules.yml
+!fixtures/dbt_project/governance_rules.yml
+
+# OS
+.DS_Store
