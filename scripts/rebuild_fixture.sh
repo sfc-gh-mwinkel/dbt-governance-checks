@@ -20,6 +20,19 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PROJECT_DIR="${REPO_ROOT}/fixtures/dbt_project"
 DATABASE="${SNOWFLAKE_DATABASE:-DBT_GOVERNANCE_FIXTURE}"
 
+# Prefer the project venv, which pins dbt Core 1.9 to match the client's
+# version. A globally installed dbt may be a different distribution: dbt
+# Fusion 2.x, for example, has no `dbt docs generate`. Run scripts/setup_venv.sh
+# if the venv is missing.
+if [[ -x "${REPO_ROOT}/.venv/bin/dbt" ]]; then
+  DBT="${REPO_ROOT}/.venv/bin/dbt"
+else
+  DBT="dbt"
+  echo "warning: ${REPO_ROOT}/.venv not found, falling back to the dbt on PATH" >&2
+  echo "         run scripts/setup_venv.sh to pin dbt Core 1.9" >&2
+fi
+echo "Using dbt: $("${DBT}" --version 2>&1 | grep -m1 -E 'installed|dbt-fusion' || echo "${DBT}")"
+
 # dim_not_built is deliberately never built: its absence from the catalog is
 # what exercises DOC009. Do not remove this exclusion.
 EXCLUDE_FROM_BUILD="dim_not_built"
@@ -66,13 +79,15 @@ PY
     "create database if not exists ${DATABASE} comment='Fixture for dbt-governance-checks; safe to drop';" >/dev/null
 
   export DBT_PROFILES_DIR=.
-  dbt seed --target sandbox
-  dbt run --target sandbox --exclude "${EXCLUDE_FROM_BUILD}"
+  "${DBT}" seed --target sandbox
+  "${DBT}" run --target sandbox --exclude "${EXCLUDE_FROM_BUILD}"
 
-  # dbt Core 1.7-1.9 uses `dbt docs generate`; dbt Fusion 2.x replaced it with
-  # `dbt compile --write-catalog`. Try the modern form, fall back to the older.
-  if ! dbt compile --write-catalog --target sandbox 2>/dev/null; then
-    dbt docs generate --target sandbox
+  # dbt Core 1.7-1.9 uses `dbt docs generate`; dbt Fusion 2.x removed it in
+  # favour of `dbt compile --write-catalog`. Prefer the dbt Core form, since
+  # that is what the shipped CI workflow calls.
+  if ! "${DBT}" docs generate --target sandbox; then
+    echo "note: falling back to dbt compile --write-catalog (dbt Fusion)" >&2
+    "${DBT}" compile --write-catalog --target sandbox
   fi
 
   cp target/catalog.json "${REPO_ROOT}/fixtures/catalog.json"
@@ -81,7 +96,7 @@ fi
 
 # Always regenerate the manifest from the credential-free ci target, so the
 # committed fixture matches what CI parses.
-DBT_PROFILES_DIR=. dbt parse --target ci
+DBT_PROFILES_DIR=. "${DBT}" parse --target ci
 cp target/manifest.json "${REPO_ROOT}/fixtures/manifest.json"
 echo "Updated fixtures/manifest.json from dbt parse."
 

@@ -72,6 +72,36 @@ jobs:
             --output "${RUNNER_TEMP}/summary.md" || true
           cat "${RUNNER_TEMP}/summary.md" >> "$GITHUB_STEP_SUMMARY"
 
+  # The client's exact dbt version is not pinned down, so verify the committed
+  # fixture parses identically across every version in the supported range.
+  # Only the fields the checker reads are compared, which is what
+  # check_fixture_drift.py does.
+  dbt-version-matrix:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dbt-version: ["1.7.18", "1.8.9", "1.9.4"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          # 3.11 is supported by all of dbt Core 1.7 through 1.9.
+          python-version: "3.11"
+
+      - name: Install dbt Core ${{ matrix.dbt-version }}
+        run: |
+          pip install -r requirements.txt
+          pip install "dbt-core==${{ matrix.dbt-version }}" "dbt-snowflake~=${{ matrix.dbt-version }}"
+          dbt --version
+
+      - name: Parse the fixture project
+        working-directory: fixtures/dbt_project
+        run: DBT_PROFILES_DIR=. dbt parse --target ci
+
+      - name: Confirm no drift in checker-relevant fields
+        run: python scripts/check_fixture_drift.py
+
   lint:
     runs-on: ubuntu-latest
     steps:

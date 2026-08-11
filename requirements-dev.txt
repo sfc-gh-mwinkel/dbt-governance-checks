@@ -1,6 +1,11 @@
 # Development and CI dependencies.
-# dbt is only needed to regenerate the fixture manifest; the checker itself
+#
+# dbt is needed only to regenerate the fixture artifacts; the checker itself
 # reads JSON and never imports dbt.
+#
+# dbt is pinned to Core 1.9 to match the target environment. Do not swap this
+# for dbt Fusion: Fusion removed `dbt docs generate`, which is the command the
+# shipped CI workflow calls. Install with scripts/setup_venv.sh.
 pytest==7.4.4
 ruff==0.6.9
 dbt-core==1.9.4
