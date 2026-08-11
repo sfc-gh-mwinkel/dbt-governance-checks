@@ -133,6 +133,7 @@ Suggested promotion order, cheapest to fix first: `DOC001` and `DOC002` (a missi
 
 ```bash
 # 1. Rules file parses and severities are valid
+dbt parse
 dbt-governance --project-dir . --format console
 
 # 2. Change scoping resolves the base ref
@@ -140,7 +141,10 @@ git fetch origin main
 dbt-governance --project-dir . --changed-only --base-ref origin/main
 
 # 3. Confirm the gate actually fails
-#    Delete a column description, commit, and re-run: expect exit code 1.
+#    Delete a column description, then re-run. `dbt parse` is required first:
+#    the checker reads artifacts, so the edit is invisible until the manifest
+#    is regenerated. Expect exit code 1.
+dbt parse && dbt-governance --project-dir . --changed-only --base-ref origin/main
 ```
 
 A clean pass on a project you know to be non-compliant means something is misconfigured. The most common cause is `require_all_columns_documented` reporting `DOC009` because `dbt docs generate` never ran.
@@ -151,6 +155,7 @@ A clean pass on a project you know to be non-compliant means something is miscon
 
 | Symptom | Cause | Fix |
 | --- | --- | --- |
+| Checks pass despite a violation you just introduced | Stale `manifest.json` | Re-run `dbt parse`. The checker reads artifacts, not source files, so an edit is invisible until the manifest is regenerated. CI always parses the PR head, so this only bites locally. |
 | `manifest schema vNN has not been validated` | dbt version outside the tested range | Confirm the dbt version, then widen `MAX_MANIFEST_SCHEMA` in `artifacts.py` after checking field locations |
 | `DOC009` on every model | No `catalog.json` | Run `dbt docs generate`, or set the rule to `severity: ignore` |
 | `DOC009` on a few models | Those models were not built | Check the build step; `--select state:modified+` may have excluded them |
