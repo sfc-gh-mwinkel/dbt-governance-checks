@@ -136,3 +136,14 @@ def test_catalog_omits_ephemeral_and_unbuilt_models():
     catalog = load_catalog(FIXTURES / "catalog.json")
     assert not catalog.has("model.governance_fixture.int_ephemeral_documented")
     assert not catalog.has("model.governance_fixture.dim_not_built")
+
+
+def test_catalog_seed_entries_do_not_affect_model_checks():
+    """`dbt docs generate` catalogs seeds too. Their unique_ids are namespaced
+    under seed.*, so they can never collide with a model lookup."""
+    catalog = load_catalog(FIXTURES / "catalog.json")
+    seeds = [uid for uid in catalog.columns_by_node if uid.startswith("seed.")]
+    assert seeds, "fixture catalog should contain seeds, proving they are harmless"
+
+    manifest = load_manifest(FIXTURES / "manifest.json")
+    assert all(not model.unique_id.startswith("seed.") for model in manifest.models)

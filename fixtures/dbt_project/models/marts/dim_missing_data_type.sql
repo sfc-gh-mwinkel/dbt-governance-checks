@@ -1,4 +1,5 @@
 {{ config(tags=['internal']) }}
-select
-    1 as region_key,
-    'Midwest' as region_name
+select distinct
+    region_key,
+    region_name
+from {{ ref('raw_customers') }}

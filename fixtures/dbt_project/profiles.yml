@@ -1,8 +1,10 @@
-# Dummy credentials. `dbt parse` builds the manifest without connecting to a
-# warehouse, so the fixture project can be parsed in CI with no secrets.
 governance_fixture:
   target: ci
+
   outputs:
+    # Dummy credentials. `dbt parse` builds the manifest without connecting to
+    # a warehouse, so the fixture can be parsed in CI with no secrets. This is
+    # the target the test suite and CI use.
     ci:
       type: snowflake
       account: not_a_real_account
@@ -13,3 +15,18 @@ governance_fixture:
       warehouse: not_a_real_warehouse
       schema: not_a_real_schema
       threads: 1
+
+    # Real connection, used only to regenerate fixtures/catalog.json. Building
+    # is the only way to learn a model's actual columns, and the catalog is
+    # what closes the undocumented-column loophole. See README for the
+    # regeneration steps.
+    sandbox:
+      type: snowflake
+      account: "{{ env_var('SNOWFLAKE_ACCOUNT') }}"
+      user: "{{ env_var('SNOWFLAKE_USER') }}"
+      private_key_path: "{{ env_var('SNOWFLAKE_PRIVATE_KEY_PATH') }}"
+      role: "{{ env_var('SNOWFLAKE_ROLE') }}"
+      warehouse: "{{ env_var('SNOWFLAKE_WAREHOUSE') }}"
+      database: "{{ env_var('SNOWFLAKE_DATABASE', 'DBT_GOVERNANCE_FIXTURE') }}"
+      schema: "{{ env_var('SNOWFLAKE_SCHEMA', 'MAIN') }}"
+      threads: 4

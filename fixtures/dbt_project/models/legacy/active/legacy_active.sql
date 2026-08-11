@@ -1,2 +1,2 @@
 -- Covered by an unexpired exemption, so it is skipped entirely.
-select 1 as legacy_id
+select customer_id as legacy_id from {{ ref('raw_customers') }}

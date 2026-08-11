@@ -1,0 +1,6 @@
+order_id,order_total,order_status,product_key,product_name
+1001,1500.00,SHIPPED,500,Industrial Widget
+1002,275.50,OPEN,501,Precision Gasket
+1003,9820.75,SHIPPED,502,Hydraulic Pump
+1004,45.00,CANCELLED,501,Precision Gasket
+1005,3300.25,OPEN,503,Control Module

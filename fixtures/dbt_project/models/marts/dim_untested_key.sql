@@ -1,4 +1,6 @@
+-- Consumes the ephemeral model, so a real build exercises ephemeral inlining.
 {{ config(tags=['internal']) }}
 select
-    1 as invoice_id,
-    500 as invoice_amount
+    invoice_id,
+    invoice_amount
+from {{ ref('int_ephemeral_documented') }}

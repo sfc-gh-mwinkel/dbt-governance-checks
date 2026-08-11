@@ -38,10 +38,11 @@ jobs:
       # Regenerates the manifest from real dbt to catch drift between the
       # committed fixture and what dbt actually emits. A silently stale
       # fixture would let the golden test pass against reality it no longer
-      # reflects.
+      # reflects. The ci target uses dummy credentials, so no warehouse is
+      # touched here; catalog.json is committed from a real build instead.
       - name: Re-parse the fixture project
         working-directory: fixtures/dbt_project
-        run: DBT_PROFILES_DIR=. dbt parse
+        run: DBT_PROFILES_DIR=. dbt parse --target ci
 
       - name: Detect fixture manifest drift
         run: python scripts/check_fixture_drift.py

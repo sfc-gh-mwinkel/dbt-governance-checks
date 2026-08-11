@@ -1,4 +1,5 @@
 {{ config(tags=['internal']) }}
-select
-    1 as product_key,
-    'Widget' as product_name
+select distinct
+    product_key,
+    product_name
+from {{ ref('raw_orders') }}

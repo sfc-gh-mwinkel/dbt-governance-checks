@@ -4,7 +4,15 @@ config-version: 2
 profile: 'governance_fixture'
 
 model-paths: ["models"]
+seed-paths: ["seeds"]
 target-path: "target"
+
+# Seeds stand in for raw source tables so the project can actually be built,
+# which is what produces a real catalog.json. The checker only evaluates
+# models, so seeds contribute no violations of their own.
+seeds:
+  governance_fixture:
+    +schema: raw
 
 models:
   governance_fixture:

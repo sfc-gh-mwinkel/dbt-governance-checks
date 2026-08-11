@@ -1,4 +1,5 @@
 {{ config(tags=['internal']) }}
 select
-    1 as customer_key,
-    'Acme' as customer_name
+    customer_id as customer_key,
+    customer_name
+from {{ ref('stg_project_tagged_only') }}

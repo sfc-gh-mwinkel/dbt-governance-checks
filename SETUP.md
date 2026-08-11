@@ -156,6 +156,7 @@ A clean pass on a project you know to be non-compliant means something is miscon
 | Symptom | Cause | Fix |
 | --- | --- | --- |
 | Checks pass despite a violation you just introduced | Stale `manifest.json` | Re-run `dbt parse`. The checker reads artifacts, not source files, so an edit is invisible until the manifest is regenerated. CI always parses the PR head, so this only bites locally. |
+| `dbt docs generate is not supported` | Running dbt Fusion 2.x rather than dbt Core | Use `dbt compile --write-catalog`. dbt Core 1.7-1.9 still uses `dbt docs generate`, which is what the shipped workflow calls. |
 | `manifest schema vNN has not been validated` | dbt version outside the tested range | Confirm the dbt version, then widen `MAX_MANIFEST_SCHEMA` in `artifacts.py` after checking field locations |
 | `DOC009` on every model | No `catalog.json` | Run `dbt docs generate`, or set the rule to `severity: ignore` |
 | `DOC009` on a few models | Those models were not built | Check the build step; `--select state:modified+` may have excluded them |

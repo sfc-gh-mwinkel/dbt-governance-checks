@@ -29,6 +29,8 @@ dim_customers      columns in manifest: 0     <- passes every column rule
 
 `catalog.json`, produced by `dbt docs generate`, supplies the real column list from `information_schema`. It is the only thing that closes that loophole, and it is why the CI job has to build changed models before checking them.
 
+Verified against a real Snowflake build: Snowflake reports column names **upper-cased** while YAML is conventionally lower-case, so every comparison case-folds.
+
 ```mermaid
 flowchart LR
     Parse[dbt parse] --> Manifest[manifest.json]
@@ -192,16 +194,31 @@ python -m pytest tests/ -v
 ruff check dbt_governance tests scripts
 ```
 
-`fixtures/dbt_project/` is a real dbt project engineered so that every rule fires at least once and every inheritance edge case is exercised. `tests/test_golden.py` pins the exact expected violation set, so a regression in any rule fails loudly.
+`fixtures/dbt_project/` is a real, buildable dbt project engineered so that every rule fires at least once and every inheritance edge case is exercised. `tests/test_golden.py` pins the exact expected violation set, so a regression in any rule fails loudly.
 
-To regenerate the fixture manifest after changing the fixture project:
+It is a seed-to-staging-to-marts pipeline: three seeds stand in for raw source tables, staging models select from them, and marts models select from staging. Seeds contribute no violations, because the checker only evaluates models.
+
+### Regenerating the fixture artifacts
 
 ```bash
-cd fixtures/dbt_project && DBT_PROFILES_DIR=. dbt parse
-cp target/manifest.json ../manifest.json
-python ../../scripts/check_fixture_drift.py
+# Manifest only. No warehouse needed.
+scripts/rebuild_fixture.sh parse
+
+# Manifest plus a real catalog, built against a Snowflake CLI connection.
+scripts/rebuild_fixture.sh build <connection-name>
 ```
 
-The committed manifest is real `dbt parse` output, so tests run without dbt installed while CI re-parses to catch drift.
+The committed `fixtures/manifest.json` is real `dbt parse` output, so tests run without dbt installed, while CI re-parses to catch drift.
 
-`fixtures/catalog.json` is hand-written, since the fixture project has no warehouse to build against. Its structure is small and stable: `nodes[unique_id].columns`.
+`fixtures/catalog.json` is genuine `dbt docs generate` output from a real Snowflake build, not a hand-written stub. That matters: it is what proves the column-name case folding is correct rather than assumed, since Snowflake returns names upper-cased.
+
+Two models are deliberately kept out of the catalog:
+
+| Model | Why absent | Expected result |
+| --- | --- | --- |
+| `dim_not_built` | Excluded from the build, simulating a failed build | `DOC009` error |
+| `int_ephemeral_documented` | Ephemeral, so never materialized | No violation |
+
+The build exclusion in `scripts/rebuild_fixture.sh` is load-bearing. Removing it makes `dim_not_built` appear in the catalog and silently deletes the `DOC009` test case.
+
+**Command differs by dbt distribution.** dbt Core 1.7-1.9 uses `dbt docs generate`; dbt Fusion 2.x replaced it with `dbt compile --write-catalog`. The rebuild script tries both. The CI workflow uses `dbt docs generate`, which is correct for the dbt Core versions this tool targets.

@@ -2,5 +2,6 @@
 -- dbt_project.yml inheritance, which a YAML-file-parsing implementation
 -- would incorrectly report as a violation.
 select
-    1 as customer_id,
-    'Acme' as customer_name
+    customer_id,
+    customer_name
+from {{ ref('raw_customers') }}
