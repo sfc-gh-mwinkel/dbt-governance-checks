@@ -94,6 +94,12 @@ jobs:
     with:
       project-dir: "."
       changed-only: true
+      # Set this when requirements.txt lives at the repo root but the dbt
+      # project is in a subdirectory. Resolved relative to project-dir.
+      # requirements-file: "../requirements.txt"
+      # Set this only if profiles.yml is somewhere dbt would not find on its
+      # own. dbt already checks the project directory, then ~/.dbt.
+      # profiles-dir: "."
     secrets:
       SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
       SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
@@ -102,6 +108,21 @@ jobs:
       SNOWFLAKE_DATABASE: ${{ secrets.SNOWFLAKE_DATABASE }}
       DBT_ENV_SECRET_PRIVATE_KEY: ${{ secrets.DBT_ENV_SECRET_PRIVATE_KEY }}
 ```
+
+### Workflow inputs
+
+| Input | Default | Notes |
+| --- | --- | --- |
+| `project-dir` | `.` | Directory containing `dbt_project.yml` |
+| `rules-file` | `governance_rules.yml` | Relative to `project-dir` |
+| `requirements-file` | `requirements.txt` | Relative to `project-dir`. dbt must come from here |
+| `profiles-dir` | unset | Only needed if dbt cannot resolve `profiles.yml` itself |
+| `changed-only` | `true` | Scope to models changed against the PR base |
+| `skip-catalog` | `false` | Skip the build; disables completeness checking |
+| `warnings-as-errors` | `false` | Fail on warnings too |
+| `dbt-target` | `ci` | Target in `profiles.yml` |
+| `python-version` | `3.11` | |
+| `governance-repo` / `governance-ref` | this repo / `v1.0.0` | Where to fetch the checker from |
 
 Pinning `@v1.0.0` means fixes arrive by bumping a tag, with no vendored code to re-copy.
 
@@ -170,6 +191,8 @@ A clean pass on a project you know to be non-compliant means something is miscon
 | Zero models checked | Project prefix mismatch | Pass `--project-dir` pointing at the directory containing `dbt_project.yml` |
 | Package models reported | Should not happen | Confirm `metadata.project_name` in the manifest; only first-party models are checked |
 | Every model fails `TAG002` | Vocabulary does not match real tags | Add operational tags to `additional_allowed_tags`, or set `allowed_only: false` |
+| `dbt: command not found`, or the "Verify dbt is available" step fails | dbt is not in the requirements file the workflow installed | Point `requirements-file` at the file that pins dbt; it is resolved relative to `project-dir` |
+| `Could not find profile` | dbt cannot locate `profiles.yml` | Set the `profiles-dir` input, relative to `project-dir` |
 
 ---
 

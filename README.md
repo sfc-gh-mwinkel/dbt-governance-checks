@@ -172,6 +172,17 @@ See [SETUP.md](SETUP.md). Two supported shapes:
 
 The standalone path is simpler to adopt but rebuilds models the pipeline may have already built.
 
+### What CI verifies
+
+| Workflow | Covers |
+| --- | --- |
+| `self-test.yml` | Unit tests on Python 3.9-3.12, fixture end-to-end (asserts exit code 1), dbt Core 1.7/1.8/1.9 parse plus drift, lint |
+| `reusable-smoke-test.yml` | Executes `governance-check.yml` itself against the fixture with `skip-catalog`, so no credentials are needed |
+
+The smoke test has been verified to produce inline annotations on the correct files, post a sticky PR comment, detect a newly introduced violation on a PR, and block the run when the strict ruleset is used (dispatch it with `rules-file: governance_rules.yml` to reproduce; that run is expected to fail).
+
+**Not yet exercised in CI:** the `dbt build` and `dbt docs generate` steps, which need a warehouse and Snowflake secrets. Column completeness (`DOC004`) therefore has no CI coverage of its live path, though it is covered by unit tests and by the committed catalog fixture generated from a real build.
+
 ---
 
 ## Known gaps
