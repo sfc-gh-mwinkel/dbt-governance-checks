@@ -17,6 +17,15 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      rules-file:
+        description: >-
+          Ruleset to run. Dispatch with governance_rules.yml to verify the
+          blocking path: that ruleset contains error-severity violations and an
+          expired exemption, so the run is EXPECTED TO FAIL. A red run from a
+          manual dispatch with the strict ruleset is the correct outcome.
+        type: string
+        default: governance_rules.warn_only.yml
 
 permissions:
   contents: read
@@ -27,7 +36,7 @@ jobs:
     uses: ./.github/workflows/governance-check.yml
     with:
       project-dir: fixtures/dbt_project
-      rules-file: governance_rules.warn_only.yml
+      rules-file: ${{ github.event.inputs['rules-file'] || 'governance_rules.warn_only.yml' }}
       requirements-file: requirements.txt
       profiles-dir: "."
       changed-only: false
