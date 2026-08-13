@@ -10,7 +10,7 @@ models:
         tests:
           - unique
       - name: customer_name
-        description: "Registered legal name of the customer."
+        description: "TBD"
         data_type: varchar
 
   - name: dim_zero_documented_columns
