@@ -1,0 +1,42 @@
+# Warning-only ruleset, used by the reusable-workflow smoke test.
+#
+# Two purposes. It lets the smoke test exercise every step of
+# governance-check.yml on a green path, and it is a working example of step 2 of
+# the rollout in SETUP.md: land every rule as a warning, clear the backlog, then
+# promote to error.
+#
+# Completeness is ignored rather than warned because the smoke test runs with
+# skip-catalog, so there is no catalog to reconcile against and DOC009 would
+# otherwise fire for every model.
+
+version: 1
+
+defaults:
+  tags:
+    require_any_of_group:
+      value:
+        domain: ["finance", "risk", "customer", "ops"]
+        classification: ["public", "internal", "confidential", "restricted"]
+      severity: warning
+    allowed_only: {value: true, severity: warning}
+    additional_allowed_tags: ["nightly", "pii"]
+
+  documentation:
+    require_yaml_entry: {value: true, severity: warning}
+    require_model_description: {value: true, severity: warning}
+    require_all_columns_documented: {severity: ignore}
+    require_column_descriptions: {value: true, severity: warning}
+    require_column_data_types: {value: true, severity: warning}
+    min_description_length: 0
+    placeholder_denylist: ["todo", "tbd", "n/a", "na", "none", "?", "xxx", "-"]
+    key_column_patterns: ["*_id", "*_key", "*_sk", "id"]
+    key_column_required_tests:
+      value: ["unique", "dbt_constraints.primary_key"]
+      severity: warning
+
+exemptions:
+  - path: "models/legacy/active/**"
+    reason: "Pre-governance backlog, tracked in FIXTURE-1"
+    expires: 2999-12-31
+  # The expired exemption from the main ruleset is omitted on purpose: an
+  # expired exemption is always an error, which would fail the smoke test.

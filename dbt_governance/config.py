@@ -90,10 +90,21 @@ def _normalize(raw: Any) -> Setting:
     return Setting(value=raw, severity=ERROR)
 
 
-def load_config(path: str | Path) -> GovernanceConfig:
+def load_config(path: str | Path, project_dir: str | Path | None = None) -> GovernanceConfig:
     path = Path(path)
     if not path.is_file():
-        raise ConfigError(f"rules file not found: {path}")
+        hint = ""
+        # An explicit --rules is resolved against the working directory, while
+        # the default is resolved against --project-dir. Naming both locations
+        # turns a silent "wrong file" into an obvious one.
+        if project_dir is not None and not path.is_absolute():
+            alternative = Path(project_dir) / path
+            if alternative.is_file():
+                hint = (
+                    f". A file does exist at {alternative} -- paths passed to --rules are resolved "
+                    "relative to the current directory, not --project-dir"
+                )
+        raise ConfigError(f"rules file not found: {path}{hint}")
 
     try:
         raw = yaml.safe_load(path.read_text()) or {}

@@ -21,6 +21,20 @@ on:
         description: "Path to governance_rules.yml, relative to project-dir"
         type: string
         default: "governance_rules.yml"
+      requirements-file:
+        description: >-
+          Path to the Python requirements file that installs dbt, relative to
+          project-dir. Set this when your requirements live at the repo root but
+          the dbt project is in a subdirectory.
+        type: string
+        default: "requirements.txt"
+      profiles-dir:
+        description: >-
+          Directory containing profiles.yml, relative to project-dir. Leave
+          empty to use dbt's own resolution, which checks the project directory
+          and then ~/.dbt.
+        type: string
+        default: ""
       python-version:
         type: string
         default: "3.11"
@@ -89,12 +103,36 @@ jobs:
         with:
           python-version: ${{ inputs.python-version }}
 
+      # Only exported when supplied: an empty DBT_PROFILES_DIR would be read as
+      # a path rather than ignored, so leaving it unset lets dbt resolve
+      # profiles itself (project directory, then ~/.dbt).
+      - name: Resolve profiles directory
+        if: inputs.profiles-dir != ''
+        run: echo "DBT_PROFILES_DIR=${{ inputs.profiles-dir }}" >> "$GITHUB_ENV"
+
       - name: Install dependencies
         working-directory: ${{ inputs.project-dir }}
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          if [ -f "${{ inputs.requirements-file }}" ]; then
+            pip install -r "${{ inputs.requirements-file }}"
+          else
+            echo "::warning::${{ inputs.requirements-file }} not found under '${{ inputs.project-dir }}'."
+            echo "::warning::If your requirements file is elsewhere, set the requirements-file input (resolved relative to project-dir)."
+          fi
           pip install "${GITHUB_WORKSPACE}/.governance-tool"
+
+      # dbt has to come from the project's own requirements. Failing here with a
+      # precise message beats a bare "dbt: command not found" three steps later.
+      - name: Verify dbt is available
+        working-directory: ${{ inputs.project-dir }}
+        run: |
+          if ! command -v dbt >/dev/null 2>&1; then
+            echo "::error::dbt is not installed. It should be pinned in your project's requirements file."
+            echo "::error::Checked '${{ inputs.requirements-file }}' relative to project-dir '${{ inputs.project-dir }}'."
+            exit 1
+          fi
+          dbt --version
 
       - name: dbt deps
         working-directory: ${{ inputs.project-dir }}

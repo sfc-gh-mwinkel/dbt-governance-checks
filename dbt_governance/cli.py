@@ -56,7 +56,7 @@ def main(argv: list[str] | None = None) -> int:
     rules_path = Path(args.rules) if args.rules else project_dir / "governance_rules.yml"
 
     try:
-        config = load_config(rules_path)
+        config = load_config(rules_path, project_dir=project_dir)
         manifest = load_manifest(manifest_path)
     except (ConfigError, ArtifactError) as exc:
         print(f"error: {exc}", file=sys.stderr)

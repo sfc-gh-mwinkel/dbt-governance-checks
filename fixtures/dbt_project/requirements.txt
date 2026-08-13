@@ -1,0 +1,5 @@
+# Pins dbt for the fixture project, mirroring how a real dbt repo supplies its
+# own dbt version. The governance workflow installs this file, then checks that
+# dbt is on PATH before using it.
+dbt-core==1.9.4
+dbt-snowflake==1.9.2

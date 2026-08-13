@@ -1,0 +1,37 @@
+name: reusable workflow smoke test
+
+# Exercises governance-check.yml itself, which the tool's own test suite does
+# not cover. self-test.yml proves the checker is correct; this proves the thing
+# the client actually invokes is wired up correctly.
+#
+# Runs with skip-catalog, so it needs no Snowflake credentials. That leaves the
+# build and `dbt docs generate` steps unexercised -- those still require a
+# warehouse and secrets.
+#
+# It runs against the warning-only ruleset so the gate exits 0 and every step
+# executes. The failure path is covered by the fixture-end-to-end job in
+# self-test.yml, which asserts exit code 1 from the CLI directly.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  call-reusable-workflow:
+    uses: ./.github/workflows/governance-check.yml
+    with:
+      project-dir: fixtures/dbt_project
+      rules-file: governance_rules.warn_only.yml
+      requirements-file: requirements.txt
+      profiles-dir: "."
+      changed-only: false
+      skip-catalog: true
+      # Test the code under review, not the released tag.
+      governance-ref: ${{ github.sha }}
+      governance-repo: ${{ github.repository }}
