@@ -1,4 +1,4 @@
-{{ config(tags=['restricted']) }}
+{{ config(tags=['restriced']) }}
 
 select
     501 as vendor_key,
