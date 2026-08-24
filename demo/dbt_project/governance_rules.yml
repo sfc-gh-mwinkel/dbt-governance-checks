@@ -1,0 +1,19 @@
+version: 1
+
+defaults:
+  tags:
+    require_any_of_group:
+      domain: [finance, risk, customer, ops]
+      classification: [public, internal, confidential, restricted]
+    allowed_only: true
+
+  documentation:
+    require_yaml_entry: true
+    require_model_description: true
+    require_all_columns_documented: {severity: ignore}
+    require_column_descriptions: true
+    require_column_data_types: {value: true, severity: warning}
+    min_description_length: 0
+    placeholder_denylist: [todo, tbd, n/a, none, "?"]
+    key_column_patterns: ["*_id", "*_key", id]
+    key_column_required_tests: [unique]
