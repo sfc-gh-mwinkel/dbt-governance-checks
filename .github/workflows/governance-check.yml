@@ -42,6 +42,18 @@ on:
         description: "Target in profiles.yml to build against"
         type: string
         default: "ci"
+      target-branch:
+        description: >-
+          Git branch used as the state and governance comparison baseline. Set
+          this to an empty string to use the pull request base branch.
+        type: string
+        default: "dev"
+      target-manifest-dbt-target:
+        description: >-
+          Target in profiles.yml used to parse the comparison branch. Its
+          relation metadata is used by dbt deferral.
+        type: string
+        default: "dev"
       changed-only:
         description: "Only check models changed relative to the PR base"
         type: boolean
@@ -103,6 +115,27 @@ jobs:
         with:
           python-version: ${{ inputs.python-version }}
 
+      - name: Resolve target branch
+        id: target-branch
+        env:
+          CONFIGURED_TARGET_BRANCH: ${{ inputs.target-branch }}
+          PULL_REQUEST_BASE_BRANCH: ${{ github.base_ref }}
+        run: |
+          target_branch="${CONFIGURED_TARGET_BRANCH:-${PULL_REQUEST_BASE_BRANCH}}"
+          if [ -z "${target_branch}" ]; then
+            echo "::error::No target branch is available. Set the target-branch input or call this workflow from a pull request."
+            exit 1
+          fi
+          if ! git check-ref-format --branch "${target_branch}" >/dev/null 2>&1; then
+            echo "::error::Invalid target branch name: ${target_branch}"
+            exit 1
+          fi
+          if ! git rev-parse --verify --quiet "refs/remotes/origin/${target_branch}^{commit}" >/dev/null; then
+            echo "::error::Target branch 'origin/${target_branch}' is not available in this checkout."
+            exit 1
+          fi
+          echo "branch=${target_branch}" >> "$GITHUB_OUTPUT"
+
       # Only exported when supplied: an empty DBT_PROFILES_DIR would be read as
       # a path rather than ignored, so leaving it unset lets dbt resolve
       # profiles itself (project directory, then ~/.dbt).
@@ -151,10 +184,62 @@ jobs:
           SNOWFLAKE_DATABASE: ${{ secrets.SNOWFLAKE_DATABASE }}
           DBT_ENV_SECRET_PRIVATE_KEY: ${{ secrets.DBT_ENV_SECRET_PRIVATE_KEY }}
 
+      - name: Generate target manifest
+        if: ${{ !inputs.skip-catalog }}
+        env:
+          PROJECT_DIR: ${{ inputs.project-dir }}
+          PROFILES_DIR: ${{ inputs.profiles-dir }}
+          TARGET_BRANCH: ${{ steps.target-branch.outputs.branch }}
+          TARGET_MANIFEST_DBT_TARGET: ${{ inputs.target-manifest-dbt-target }}
+          TARGET_MANIFEST_DIR: ${{ runner.temp }}/target-manifest
+          TARGET_WORKTREE: ${{ runner.temp }}/dbt-target-branch
+          SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+          SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
+          SNOWFLAKE_ROLE: ${{ secrets.SNOWFLAKE_ROLE }}
+          SNOWFLAKE_WAREHOUSE: ${{ secrets.SNOWFLAKE_WAREHOUSE }}
+          SNOWFLAKE_DATABASE: ${{ secrets.SNOWFLAKE_DATABASE }}
+          DBT_ENV_SECRET_PRIVATE_KEY: ${{ secrets.DBT_ENV_SECRET_PRIVATE_KEY }}
+        run: |
+          cleanup() {
+            git worktree remove --force "${TARGET_WORKTREE}" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+
+          rm -rf "${TARGET_MANIFEST_DIR}"
+          git worktree add --detach "${TARGET_WORKTREE}" "origin/${TARGET_BRANCH}"
+
+          target_project_dir="${TARGET_WORKTREE}/${PROJECT_DIR}"
+          if [ ! -f "${target_project_dir}/dbt_project.yml" ]; then
+            echo "::error::dbt_project.yml not found on target branch under '${PROJECT_DIR}'."
+            exit 1
+          fi
+
+          if [ -n "${PROFILES_DIR}" ]; then
+            export DBT_PROFILES_DIR="${target_project_dir}/${PROFILES_DIR}"
+          elif [ -f "${target_project_dir}/profiles.yml" ]; then
+            export DBT_PROFILES_DIR="${target_project_dir}"
+          else
+            unset DBT_PROFILES_DIR
+          fi
+
+          dbt deps --project-dir "${target_project_dir}"
+          dbt parse \
+            --project-dir "${target_project_dir}" \
+            --target "${TARGET_MANIFEST_DBT_TARGET}" \
+            --target-path "${TARGET_MANIFEST_DIR}"
+
+          if [ ! -f "${TARGET_MANIFEST_DIR}/manifest.json" ]; then
+            echo "::error::dbt parse did not produce ${TARGET_MANIFEST_DIR}/manifest.json."
+            exit 1
+          fi
+
       - name: Build changed models
         if: ${{ !inputs.skip-catalog }}
         working-directory: ${{ inputs.project-dir }}
-        run: dbt build --target ${{ inputs.dbt-target }} --select state:modified+ --defer --state ./prod-manifest
+        run: >-
+          dbt build --target "${{ inputs.dbt-target }}"
+          --select state:modified+ --defer
+          --state "${{ runner.temp }}/target-manifest"
         continue-on-error: true
         env:
           SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
@@ -182,22 +267,30 @@ jobs:
       - name: Governance annotations
         working-directory: ${{ inputs.project-dir }}
         continue-on-error: true
+        env:
+          TARGET_BRANCH: ${{ steps.target-branch.outputs.branch }}
         run: |
           dbt-governance \
             --project-dir . \
             --rules "${{ inputs.rules-file }}" \
-            ${{ inputs.changed-only && format('--changed-only --base-ref origin/{0}', github.base_ref) || '' }} \
+            ${{ inputs.changed-only && '--changed-only' || '' }} \
+            ${{ inputs.changed-only && '--base-ref' || '' }} \
+            ${{ inputs.changed-only && '"origin/${TARGET_BRANCH}"' || '' }} \
             --format annotations
 
       - name: Governance summary
         id: summary
         working-directory: ${{ inputs.project-dir }}
+        env:
+          TARGET_BRANCH: ${{ steps.target-branch.outputs.branch }}
         run: |
           set +e
           dbt-governance \
             --project-dir . \
             --rules "${{ inputs.rules-file }}" \
-            ${{ inputs.changed-only && format('--changed-only --base-ref origin/{0}', github.base_ref) || '' }} \
+            ${{ inputs.changed-only && '--changed-only' || '' }} \
+            ${{ inputs.changed-only && '--base-ref' || '' }} \
+            ${{ inputs.changed-only && '"origin/${TARGET_BRANCH}"' || '' }} \
             ${{ inputs.warnings-as-errors && '--warnings-as-errors' || '' }} \
             --format markdown \
             --output "${RUNNER_TEMP}/governance.md"

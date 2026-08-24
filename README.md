@@ -172,12 +172,36 @@ See [SETUP.md](SETUP.md). Two supported shapes:
 
 The standalone path is simpler to adopt but rebuilds models the pipeline may have already built.
 
+### Target-branch baseline
+
+The standalone workflow compares the current changes with a Git deployment-stage
+branch. The default is `dev`; callers promoting through UAT or production can set
+`target-branch` to the branch representing that stage.
+
+Before the current branch is built, the workflow creates a temporary worktree at
+the target branch and runs `dbt parse` there. The resulting
+`target-manifest/manifest.json` drives both `state:modified+` selection and dbt
+deferral. Governance file scoping uses the same branch, so the build and policy
+checks agree on what changed.
+
+Three settings remain independent:
+
+| Setting | Meaning |
+| --- | --- |
+| `target-branch` | Git branch used as the comparison baseline; defaults to `dev` |
+| `target-manifest-dbt-target` | dbt profile target used while parsing that branch; its relation metadata drives deferral |
+| `dbt-target` | dbt profile target where the current changes are built |
+
+This is a source-control baseline, not proof of the last successful deployment.
+If a stage branch can diverge from its deployed Snowflake environment, use a
+manifest published by the deployment pipeline instead.
+
 ### What CI verifies
 
 | Workflow | Covers |
 | --- | --- |
 | `self-test.yml` | Unit tests on Python 3.9-3.12, fixture end-to-end (asserts exit code 1), dbt Core 1.7/1.8/1.9 parse plus drift, lint |
-| `reusable-smoke-test.yml` | Executes `governance-check.yml` itself against the fixture with `skip-catalog`, so no credentials are needed |
+| `reusable-smoke-test.yml` | Executes `governance-check.yml` itself against the fixture with `skip-catalog`, so no credentials are needed; it sets `target-branch: main` because this repository has no `dev` branch |
 
 The smoke test has been verified to produce inline annotations on the correct files, post a sticky PR comment, detect a newly introduced violation on a PR, and block the run when the strict ruleset is used (dispatch it with `rules-file: governance_rules.yml` to reproduce; that run is expected to fail).
 
@@ -209,6 +233,26 @@ ruff check dbt_governance tests scripts
 ```
 
 The venv matters more than it looks. A globally installed `dbt` may be a different **distribution**, not just a different version: dbt Fusion 2.x has no `dbt docs generate` at all, so fixtures regenerated with it would stop proving that the shipped CI workflow works. `scripts/setup_venv.sh` pins dbt Core 1.9, and the venv shadows any global dbt only while activated, so both can coexist.
+
+### GitHub demonstration pull requests
+
+`demo/dbt_project/` is a small compliant dbt project used to demonstrate the
+reusable workflow on pull requests targeting `dev`. The demo workflow runs with
+`skip-catalog: true`, so it needs no Snowflake credentials while still showing
+inline annotations, the pull-request summary, warning behavior, and blocking
+errors.
+
+The maintained demo set contains three pull requests:
+
+| Demo | Expected result | Change |
+| --- | --- | --- |
+| Passing | Green | Adds an allowed operational tag to `customers` |
+| Warning | Green with annotation | Removes the declared `data_type` from `orders.order_total` |
+| Blocking | Red | Replaces the `vendors` classification tag with a misspelling |
+
+The warning demo remains green because `require_column_data_types` is configured
+as a warning. The blocking demo fails because tag classification and vocabulary
+rules use error severity.
 
 `scripts/rebuild_fixture.sh` picks up `.venv/bin/dbt` automatically and warns if the venv is missing.
 

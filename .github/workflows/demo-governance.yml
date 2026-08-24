@@ -1,0 +1,29 @@
+name: demo dbt governance
+
+on:
+  pull_request:
+    branches: [dev]
+    paths:
+      - "demo/dbt_project/**"
+      - ".github/workflows/demo-governance.yml"
+      - ".github/workflows/governance-check.yml"
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  governance:
+    uses: ./.github/workflows/governance-check.yml
+    with:
+      project-dir: demo/dbt_project
+      rules-file: governance_rules.yml
+      requirements-file: requirements.txt
+      profiles-dir: "."
+      target-branch: dev
+      target-manifest-dbt-target: ci
+      dbt-target: ci
+      changed-only: true
+      skip-catalog: true
+      governance-ref: ${{ github.sha }}
+      governance-repo: ${{ github.repository }}

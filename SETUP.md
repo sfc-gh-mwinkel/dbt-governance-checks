@@ -94,6 +94,10 @@ jobs:
     with:
       project-dir: "."
       changed-only: true
+      # Defaults shown explicitly. Override both for UAT or production-stage
+      # validation when those stages use different Git branches/dbt targets.
+      target-branch: "dev"
+      target-manifest-dbt-target: "dev"
       # Set this when requirements.txt lives at the repo root but the dbt
       # project is in a subdirectory. Resolved relative to project-dir.
       # requirements-file: "../requirements.txt"
@@ -117,6 +121,8 @@ jobs:
 | `rules-file` | `governance_rules.yml` | Relative to `project-dir` |
 | `requirements-file` | `requirements.txt` | Relative to `project-dir`. dbt must come from here |
 | `profiles-dir` | unset | Only needed if dbt cannot resolve `profiles.yml` itself |
+| `target-branch` | `dev` | Git branch used for state selection and governance comparison. Set empty to fall back to the PR base branch |
+| `target-manifest-dbt-target` | `dev` | dbt profile target used to parse the comparison branch; relation metadata from this target drives deferral |
 | `changed-only` | `true` | Scope to models changed against the PR base |
 | `skip-catalog` | `false` | Skip the build; disables completeness checking |
 | `warnings-as-errors` | `false` | Fail on warnings too |
@@ -125,6 +131,29 @@ jobs:
 | `governance-repo` / `governance-ref` | this repo / `v1.0.0` | Where to fetch the checker from |
 
 Pinning `@v1.0.0` means fixes arrive by bumping a tag, with no vendored code to re-copy.
+
+### Development, UAT, and production baselines
+
+The reusable workflow treats the Git deployment-stage branch as the baseline.
+For normal development pull requests, leave `target-branch: dev`. A promotion
+workflow can instead compare with UAT or production:
+
+```yaml
+with:
+  target-branch: "uat"
+  target-manifest-dbt-target: "uat"
+  dbt-target: "ci"
+```
+
+The target branch controls which source code dbt compares against. The target
+manifest dbt target controls the relation locations used by `--defer`. The build
+target controls where the current changes execute. Keeping these separate lets
+dev, UAT, and production be at different points in the deployment lifecycle.
+
+The workflow generates the target manifest from Git on each run; it does not need
+S3 for that mode. This intentionally represents the branch state, not necessarily
+the last successfully deployed state. Continue using a deployment-published
+manifest if exact deployed-state comparison is required.
 
 ### Running with no warehouse access
 
@@ -187,6 +216,8 @@ A clean pass on a project you know to be non-compliant means something is miscon
 | `manifest schema vNN has not been validated` | dbt version outside the tested range | Confirm the dbt version, then widen `MAX_MANIFEST_SCHEMA` in `artifacts.py` after checking field locations |
 | `DOC009` on every model | No `catalog.json` | Run `dbt docs generate`, or set the rule to `severity: ignore` |
 | `DOC009` on a few models | Those models were not built | Check the build step; `--select state:modified+` may have excluded them |
+| `Target branch 'origin/...' is not available` | The configured stage branch does not exist or was not fetched | Confirm `target-branch`; the workflow checkout uses `fetch-depth: 0` |
+| Target-branch `dbt parse` fails | The configured profile target cannot render on the comparison branch | Confirm `target-manifest-dbt-target` and its required environment variables |
 | `git ... failed` | Shallow clone | `fetch-depth: 0` on checkout |
 | Zero models checked | Project prefix mismatch | Pass `--project-dir` pointing at the directory containing `dbt_project.yml` |
 | Package models reported | Should not happen | Confirm `metadata.project_name` in the manifest; only first-party models are checked |
