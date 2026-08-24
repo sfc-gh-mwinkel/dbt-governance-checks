@@ -23,7 +23,6 @@ models:
           - unique
       - name: order_total
         description: "Gross order amount in US dollars."
-        data_type: number
 
   - name: vendors
     description: "Vendor records used by the blocking governance demonstration."
