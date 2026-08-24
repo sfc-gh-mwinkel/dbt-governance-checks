@@ -23,6 +23,7 @@ venv/
 # Local overrides
 governance_rules.yml
 !fixtures/dbt_project/governance_rules.yml
+!demo/dbt_project/governance_rules.yml
 
 # Internal working notes. Kept out of the client deliverable; README.md and
 # SETUP.md are the client-facing docs.
