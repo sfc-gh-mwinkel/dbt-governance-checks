@@ -39,6 +39,9 @@ jobs:
       rules-file: ${{ github.event.inputs['rules-file'] || 'governance_rules.warn_only.yml' }}
       requirements-file: requirements.txt
       profiles-dir: "."
+      # This repository has no dev branch. Production callers normally inherit
+      # the reusable workflow's dev default or set their deployment-stage branch.
+      target-branch: main
       changed-only: false
       skip-catalog: true
       # Test the code under review, not the released tag.

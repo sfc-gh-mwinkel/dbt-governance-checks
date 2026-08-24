@@ -1,0 +1,38 @@
+version: 2
+
+models:
+  - name: customers
+    description: "Customer records used by the passing governance demonstration."
+    columns:
+      - name: customer_key
+        description: "Surrogate key uniquely identifying the customer."
+        data_type: number
+        tests:
+          - unique
+      - name: customer_name
+        description: "Display name of the customer."
+        data_type: varchar
+
+  - name: orders
+    description: "Order records used by the warning-only governance demonstration."
+    columns:
+      - name: order_key
+        description: "Surrogate key uniquely identifying the order."
+        data_type: number
+        tests:
+          - unique
+      - name: order_total
+        description: "Gross order amount in US dollars."
+        data_type: number
+
+  - name: vendors
+    description: "Vendor records used by the blocking governance demonstration."
+    columns:
+      - name: vendor_key
+        description: "Surrogate key uniquely identifying the vendor."
+        data_type: number
+        tests:
+          - unique
+      - name: vendor_name
+        description: "Display name of the vendor."
+        data_type: varchar

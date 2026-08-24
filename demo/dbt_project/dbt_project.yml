@@ -1,0 +1,12 @@
+name: governance_demo
+version: 1.0.0
+config-version: 2
+profile: governance_demo
+
+model-paths: ["models"]
+target-path: "target"
+
+models:
+  governance_demo:
+    +materialized: view
+    +tags: [finance]
