@@ -2,7 +2,7 @@ version: 2
 
 models:
   - name: customers
-    description: "Customer records used by the passing governance demonstration."
+    description: "Customer records used by the clean, passing governance demonstration."
     columns:
       - name: customer_key
         description: "Surrogate key uniquely identifying the customer."
